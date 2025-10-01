@@ -1,0 +1,77 @@
+name: Build Windows Executable
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build Windows executable
+        run: |
+          pyinstaller --onefile --windowed --name PasswordNotificationSystem --icon assets/icons/app_icon.ico main.py
+      
+      - name: Create ZIP archive
+        run: |
+          mkdir release
+          move dist\PasswordNotificationSystem.exe release\
+          echo "パスワードお知らせシステム v${{ github.ref_name }}" > release\README.txt
+          echo "" >> release\README.txt
+          echo "使い方:" >> release\README.txt
+          echo "1. PasswordNotificationSystem.exe をダブルクリックして起動" >> release\README.txt
+          echo "2. 各Stepを順番に実行してください" >> release\README.txt
+          echo "3. CSVテンプレートボタンでサンプルファイルを出力できます" >> release\README.txt
+          Compress-Archive -Path release\* -DestinationPath PasswordNotificationSystem-Windows-${{ github.ref_name }}.zip
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Executable
+          path: PasswordNotificationSystem-Windows-${{ github.ref_name }}.zip
+      
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: PasswordNotificationSystem-Windows-${{ github.ref_name }}.zip
+          body: |
+            ## 📦 パスワードお知らせシステム ${{ github.ref_name }}
+            
+            ### ⬇️ ダウンロード
+            **Windows版**: `PasswordNotificationSystem-Windows-${{ github.ref_name }}.zip`
+            
+            ### 🚀 インストール方法
+            1. ZIPファイルをダウンロード
+            2. 解凍して `PasswordNotificationSystem.exe` を実行
+            3. ダッシュボードが起動します
+            
+            ### ✨ 機能
+            - **Step 1**: ファイル名変更
+            - **Step 2**: フォルダ作成
+            - **Step 3**: ライセンスPDF作成
+            - **Step 4**: ファイル振り分け
+            
+            ### 💻 動作環境
+            - Windows 10/11 (64bit)
+            - インストール不要（スタンドアロン実行ファイル）
+            - .NET Framework不要
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
