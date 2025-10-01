@@ -10,6 +10,9 @@ jobs:
   build-windows:
     runs-on: windows-latest
     
+    permissions:
+      contents: write
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,15 +22,32 @@ jobs:
         with:
           python-version: '3.11'
       
-      - name: Install dependencies
+      - name: Clean install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          python -m pip install --upgrade pip setuptools wheel
+          # 既存のnumpy/pandasを削除してクリーンインストール
+          pip uninstall -y numpy pandas || echo "No existing numpy/pandas found"
+          pip install --no-cache-dir numpy==1.24.4
+          pip install --no-cache-dir pandas==2.0.3
+          pip install --no-cache-dir -r requirements.txt
+          pip install pyinstaller==6.3.0
+      
+      - name: Verify installation
+        run: |
+          python -c "import numpy, pandas; print(f'NumPy: {numpy.__version__}'); print(f'Pandas: {pandas.__version__}')"
+      
+      - name: Clean build directories
+        run: |
+          if exist build rmdir /s /q build
+          if exist dist rmdir /s /q dist
       
       - name: Build Windows executable
         run: |
-          pyinstaller --onefile --windowed --name PasswordNotificationSystem --icon assets/icons/app_icon.ico main.py
+          pyinstaller --clean --noconfirm --onefile --windowed --name PasswordNotificationSystem --exclude-module matplotlib --exclude-module scipy --exclude-module IPython main.py
+      
+      - name: Test executable (basic check)
+        run: |
+          if exist dist\PasswordNotificationSystem.exe (echo "✅ EXE created successfully") else (echo "❌ EXE creation failed" && exit 1)
       
       - name: Create ZIP archive
         run: |
@@ -39,6 +59,9 @@ jobs:
           echo "1. PasswordNotificationSystem.exe をダブルクリックして起動" >> release\README.txt
           echo "2. 各Stepを順番に実行してください" >> release\README.txt
           echo "3. CSVテンプレートボタンでサンプルファイルを出力できます" >> release\README.txt
+          echo "" >> release\README.txt
+          echo "注意: 初回起動時、Windows Defenderの警告が出る場合があります" >> release\README.txt
+          echo "「詳細情報」→「実行」で起動できます" >> release\README.txt
           Compress-Archive -Path release\* -DestinationPath PasswordNotificationSystem-Windows-${{ github.ref_name }}.zip
       
       - name: Upload artifact
@@ -61,17 +84,20 @@ jobs:
             ### 🚀 インストール方法
             1. ZIPファイルをダウンロード
             2. 解凍して `PasswordNotificationSystem.exe` を実行
-            3. ダッシュボードが起動します
+            3. **Windows Defenderの警告**: 「詳細情報」→「実行」
             
             ### ✨ 機能
             - **Step 1**: ファイル名変更
-            - **Step 2**: フォルダ作成
+            - **Step 2**: フォルダ作成  
             - **Step 3**: ライセンスPDF作成
             - **Step 4**: ファイル振り分け
             
             ### 💻 動作環境
             - Windows 10/11 (64bit)
-            - インストール不要（スタンドアロン実行ファイル）
-            - .NET Framework不要
+            - スタンドアロン実行ファイル
+            
+            ### 🛠️ 修正内容
+            - NumPy/Pandas互換性問題を解決
+            - 安定版ライブラリに固定（numpy 1.24.4, pandas 2.0.3）
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
