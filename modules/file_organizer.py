@@ -1,11 +1,11 @@
 """
-Module4: ファイル振り分け
+Module4: ファイル振り分け（可変マッチング対応）
 ファイルを各生徒のフォルダに配置
 """
 from pathlib import Path
 import shutil
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 from utils.logger import get_logger
 from utils.file_operations import open_folder
 
@@ -20,6 +20,7 @@ class FileOrganizer:
         self.copied_files = 0
         self.skipped_files = 0
         self.unmatched_files = 0
+        self.match_length = 8  # デフォルト値
     
     def run(self):
         """
@@ -31,6 +32,15 @@ class FileOrganizer:
         logger.info("=" * 60)
         logger.info("Step 4: ファイル振り分けを開始")
         logger.info("=" * 60)
+        
+        # マッチング文字数を入力
+        match_length = self._input_match_length()
+        if match_length is None:
+            logger.info("マッチング文字数の入力がキャンセルされました")
+            return False
+        
+        self.match_length = match_length
+        logger.info(f"マッチング文字数: {self.match_length}文字")
         
         # ソースフォルダを選択
         source_folder = self._select_source_folder()
@@ -83,6 +93,7 @@ class FileOrganizer:
             # 確認ダイアログ
             confirm_msg = (
                 f"以下の内容でファイルを振り分けます。\n\n"
+                f"マッチング文字数: {self.match_length}文字\n"
                 f"対象ファイル数: {len(source_files)}\n"
                 f"振り分け先フォルダ数: {len(target_folders)}\n\n"
                 f"実行しますか？"
@@ -100,8 +111,8 @@ class FileOrganizer:
             for i, source_file in enumerate(source_files, 1):
                 file_name = source_file.name
                 
-                # ファイル名の最初の8文字を取得
-                file_prefix = file_name[:8] if len(file_name) >= 8 else file_name
+                # ファイル名の最初のN文字を取得
+                file_prefix = file_name[:self.match_length] if len(file_name) >= self.match_length else file_name
                 
                 logger.info(f"処理中 ({i}/{len(source_files)}): {file_name} (prefix: {file_prefix})")
                 
@@ -110,8 +121,10 @@ class FileOrganizer:
                 for target_folder in target_folders:
                     folder_name = target_folder.name
                     
-                    # フォルダ名の最初の8文字と比較
-                    if len(folder_name) >= 8 and folder_name[:8] == file_prefix:
+                    # フォルダ名の最初のN文字と比較
+                    folder_prefix = folder_name[:self.match_length] if len(folder_name) >= self.match_length else folder_name
+                    
+                    if folder_prefix == file_prefix:
                         target_file_path = target_folder / file_name
                         
                         # ファイルが既に存在しない場合のみコピー
@@ -137,6 +150,7 @@ class FileOrganizer:
             
             logger.info("=" * 60)
             logger.info(f"ファイル振り分け完了")
+            logger.info(f"マッチング文字数: {self.match_length}文字")
             logger.info(f"コピー: {self.copied_files}件")
             logger.info(f"スキップ: {self.skipped_files}件")
             logger.info(f"マッチなし: {self.unmatched_files}件")
@@ -145,6 +159,7 @@ class FileOrganizer:
             # 結果表示
             result_msg = (
                 f"ファイル振り分け完了!\n\n"
+                f"マッチング文字数: {self.match_length}文字\n"
                 f"処理したファイル数: {len(source_files)}\n"
                 f"コピーしたファイル: {self.copied_files}件\n"
                 f"スキップしたファイル: {self.skipped_files}件\n"
@@ -166,6 +181,63 @@ class FileOrganizer:
             import traceback
             traceback.print_exc()
             return False
+    
+    def _input_match_length(self):
+        """
+        マッチング文字数入力ダイアログ
+        
+        Returns:
+            int or None: 入力された文字数、キャンセル時はNone
+        """
+        root = tk.Tk()
+        root.withdraw()
+        
+        while True:
+            match_length_str = simpledialog.askstring(
+                "マッチング文字数設定",
+                "ファイル名とフォルダ名の照合に使用する文字数を入力してください:\n\n"
+                "例:\n"
+                "- 8文字: tanaka@s と tanaka@school.jp\n"
+                "- 6文字: tanaka と tanaka@school.jp\n"
+                "- 10文字: tanaka@sch と tanaka@school.jp\n\n"
+                "推奨: 8文字（デフォルト）",
+                initialvalue="8"
+            )
+            
+            if match_length_str is None:
+                # キャンセル
+                root.destroy()
+                return None
+            
+            try:
+                match_length = int(match_length_str.strip())
+                
+                if match_length < 1:
+                    messagebox.showerror(
+                        "入力エラー",
+                        "1以上の数値を入力してください。"
+                    )
+                    continue
+                
+                if match_length > 50:
+                    response = messagebox.askyesno(
+                        "確認",
+                        f"{match_length}文字は長すぎる可能性があります。\n"
+                        f"本当にこの値を使用しますか？"
+                    )
+                    if not response:
+                        continue
+                
+                root.destroy()
+                return match_length
+                
+            except ValueError:
+                messagebox.showerror(
+                    "入力エラー",
+                    "数値を入力してください。\n"
+                    "例: 8"
+                )
+                continue
     
     def _select_source_folder(self):
         """ソースフォルダ選択ダイアログ"""
