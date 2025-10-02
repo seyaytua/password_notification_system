@@ -1,9 +1,9 @@
 """
-メインダッシュボードUI
+メインダッシュボードUI（修正版）
+FileRenamerに親UIを渡すように変更
 """
 import customtkinter as ctk
 from tkinter import messagebox
-import threading
 from ui.log_viewer import LogViewer
 from modules.folder_creator import FolderCreator
 from modules.file_renamer import FileRenamer
@@ -180,16 +180,15 @@ class Dashboard(ctk.CTk):
     def update_status(self, message, color="#757575"):
         """ステータスメッセージを更新"""
         self.status_label.configure(text=message, text_color=color)
+        self.update()  # UIを即座に更新
     
-    # Step 1
+    # Step 1 - 修正箇所
     def run_step1(self):
-        """Step 1: ファイル名変更を実行"""
+        """Step 1: ファイル名変更を実行（メインスレッド）"""
         self.update_status("Step 1: ファイル名変更を実行中...", "#1976D2")
-        threading.Thread(target=self._execute_step1, daemon=True).start()
-    
-    def _execute_step1(self):
         try:
-            renamer = FileRenamer()
+            # 親UI（self）を渡してダイアログの親を固定
+            renamer = FileRenamer(parent_ui=self)
             success = renamer.run()
             if success:
                 self.update_status("✓ Step 1 完了: ファイル名変更成功", "#4CAF50")
@@ -207,11 +206,8 @@ class Dashboard(ctk.CTk):
     
     # Step 2
     def run_step2(self):
-        """Step 2: フォルダ作成を実行"""
+        """Step 2: フォルダ作成を実行（メインスレッド）"""
         self.update_status("Step 2: フォルダ作成を実行中...", "#1976D2")
-        threading.Thread(target=self._execute_step2, daemon=True).start()
-    
-    def _execute_step2(self):
         try:
             creator = FolderCreator()
             success = creator.run()
@@ -231,11 +227,8 @@ class Dashboard(ctk.CTk):
     
     # Step 3
     def run_step3(self):
-        """Step 3: ライセンスPDF作成を実行"""
+        """Step 3: ライセンスPDF作成を実行（メインスレッド）"""
         self.update_status("Step 3: ライセンスPDF作成を実行中...", "#1976D2")
-        threading.Thread(target=self._execute_step3, daemon=True).start()
-    
-    def _execute_step3(self):
         try:
             generator = LicensePdfGenerator()
             success = generator.run()
@@ -255,11 +248,8 @@ class Dashboard(ctk.CTk):
     
     # Step 4
     def run_step4(self):
-        """Step 4: ファイル振り分けを実行"""
+        """Step 4: ファイル振り分けを実行（メインスレッド）"""
         self.update_status("Step 4: ファイル振り分けを実行中...", "#1976D2")
-        threading.Thread(target=self._execute_step4, daemon=True).start()
-    
-    def _execute_step4(self):
         try:
             organizer = FileOrganizer()
             success = organizer.run()
