@@ -1,6 +1,5 @@
 """
-メインダッシュボードUI（修正版）
-FileRenamerに親UIを渡すように変更
+メインダッシュボードUI（Step5追加版）
 """
 import customtkinter as ctk
 from tkinter import messagebox
@@ -9,6 +8,7 @@ from modules.folder_creator import FolderCreator
 from modules.file_renamer import FileRenamer
 from modules.license_pdf_generator import LicensePdfGenerator
 from modules.file_organizer import FileOrganizer
+from modules.file_copier import FileCopier
 from templates.csv_templates import CSVTemplateGenerator
 from utils.logger import get_logger
 
@@ -24,7 +24,7 @@ class Dashboard(ctk.CTk):
         
         # ウィンドウ設定
         self.title("パスワードお知らせシステム - 環境構築ダッシュボード")
-        self.geometry("900x800")
+        self.geometry("900x900")  # 高さを増やしてStep5を追加
         
         # カラーテーマ
         ctk.set_appearance_mode("light")
@@ -58,8 +58,8 @@ class Dashboard(ctk.CTk):
         )
         subtitle.pack()
         
-        # メインコンテンツフレーム
-        main_frame = ctk.CTkFrame(self)
+        # メインコンテンツフレーム（スクロール可能）
+        main_frame = ctk.CTkScrollableFrame(self, height=400)
         main_frame.pack(pady=10, padx=20, fill="both", expand=True)
         
         # ツールカード
@@ -97,6 +97,15 @@ class Dashboard(ctk.CTk):
             self.run_step4,
             None,
             row=3
+        )
+        
+        self._create_tool_card(
+            main_frame,
+            "Step 5: ファイル一括コピー",
+            "1つのファイルをすべてのサブフォルダにコピー",
+            self.run_step5,
+            None,
+            row=4
         )
         
         # ログビューアー
@@ -180,14 +189,13 @@ class Dashboard(ctk.CTk):
     def update_status(self, message, color="#757575"):
         """ステータスメッセージを更新"""
         self.status_label.configure(text=message, text_color=color)
-        self.update()  # UIを即座に更新
+        self.update()
     
-    # Step 1 - 修正箇所
+    # Step 1
     def run_step1(self):
-        """Step 1: ファイル名変更を実行（メインスレッド）"""
+        """Step 1: ファイル名変更を実行"""
         self.update_status("Step 1: ファイル名変更を実行中...", "#1976D2")
         try:
-            # 親UI（self）を渡してダイアログの親を固定
             renamer = FileRenamer(parent_ui=self)
             success = renamer.run()
             if success:
@@ -206,7 +214,7 @@ class Dashboard(ctk.CTk):
     
     # Step 2
     def run_step2(self):
-        """Step 2: フォルダ作成を実行（メインスレッド）"""
+        """Step 2: フォルダ作成を実行"""
         self.update_status("Step 2: フォルダ作成を実行中...", "#1976D2")
         try:
             creator = FolderCreator()
@@ -227,7 +235,7 @@ class Dashboard(ctk.CTk):
     
     # Step 3
     def run_step3(self):
-        """Step 3: ライセンスPDF作成を実行（メインスレッド）"""
+        """Step 3: ライセンスPDF作成を実行"""
         self.update_status("Step 3: ライセンスPDF作成を実行中...", "#1976D2")
         try:
             generator = LicensePdfGenerator()
@@ -248,7 +256,7 @@ class Dashboard(ctk.CTk):
     
     # Step 4
     def run_step4(self):
-        """Step 4: ファイル振り分けを実行（メインスレッド）"""
+        """Step 4: ファイル振り分けを実行"""
         self.update_status("Step 4: ファイル振り分けを実行中...", "#1976D2")
         try:
             organizer = FileOrganizer()
@@ -260,3 +268,18 @@ class Dashboard(ctk.CTk):
         except Exception as e:
             logger.error(f"Step 4でエラーが発生しました: {e}")
             self.update_status("✗ Step 4 エラー", "#F44336")
+    
+    # Step 5（新規追加）
+    def run_step5(self):
+        """Step 5: ファイル一括コピーを実行"""
+        self.update_status("Step 5: ファイル一括コピーを実行中...", "#1976D2")
+        try:
+            copier = FileCopier()
+            success = copier.run()
+            if success:
+                self.update_status("✓ Step 5 完了: ファイル一括コピー成功", "#4CAF50")
+            else:
+                self.update_status("Step 5 キャンセル", "#757575")
+        except Exception as e:
+            logger.error(f"Step 5でエラーが発生しました: {e}")
+            self.update_status("✗ Step 5 エラー", "#F44336")
